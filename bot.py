@@ -139,7 +139,7 @@ if __name__ == "__main__":
     threading.Thread(target=run_flask, daemon=True).start()
     
     # Jalankan Bot Telegram
-    app = ApplicationBuilder().token(TOKEN).build()
+    app = ApplicationBuilder().token(TOKEN).updater(None).token(TOKEN).build()
     app.add_handler(CommandHandler("analisa", cek_market))
     app.add_handler(CommandHandler("start", cek_market))
     app.add_handler(CallbackQueryHandler(tombol_diklik))
