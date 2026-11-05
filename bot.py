@@ -4,7 +4,7 @@ import threading
 import time
 import requests
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg') # Biar matplotlib bisa render gambar tanpa layar/GUI di server cloud
 import matplotlib.pyplot as plt
 import yfinance as yf
 from flask import Flask
@@ -39,11 +39,18 @@ def generate_chart_dan_analisa(kode_pair):
         
     info = DAFTAR_PAIR[kode_pair]
     try:
-        ticker = yf.Ticker(info["ticker"])
-        df_h1 = ticker.history(period="5d", interval="1h")
-        df_m15 = ticker.history(period="1d", interval="15m")
+        # Bikin session kustom dengan User-Agent agar lolos dari blokir Yahoo Finance di Cloud
+        session = requests.Session()
+        session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        })
+        
+        ticker = yf.Ticker(info["ticker"], session=session)
+        df_h1 = ticker.history(period="5d", interval="1h", proxy=None)
+        df_m15 = ticker.history(period="1d", interval="15m", proxy=None)
         
         if df_m15.empty or df_h1.empty:
+            print(f"Data kosong untuk pair {info['ticker']}")
             return None
             
         harga_terakhir = float(df_m15['Close'].iloc[-1])
