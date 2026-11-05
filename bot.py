@@ -135,11 +135,12 @@ async def tombol_diklik(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(text="Mantap, Cok! Semoga profit hijau mulus di MIFX! 🚀", parse_mode="Markdown")
 
 if __name__ == "__main__":
-    # Jalankan Flask Server di thread terpisah
+    # Jalankan Flask Server di thread terpisah agar keep-alive jalan
     threading.Thread(target=run_flask, daemon=True).start()
     
-    # Jalankan Bot Telegram
-    app = ApplicationBuilder().token(TOKEN).updater(None).token(TOKEN).build()
+    # Inisialisasi Bot Telegram dengan benar (menggunakan Updater bawaan otomatis)
+    app = ApplicationBuilder().token(TOKEN).build()
+    
     app.add_handler(CommandHandler("analisa", cek_market))
     app.add_handler(CommandHandler("start", cek_market))
     app.add_handler(CallbackQueryHandler(tombol_diklik))
