@@ -21,7 +21,7 @@ def run_flask():
     app_web.run(host="0.0.0.0", port=port)
 
 # --- 2. CONFIG BOT TELEGRAM ---
-TOKEN = "9132426420:AAEVADvhvpT-0JUJ6WLjtaBW_bKA21ejlxE"
+TOKEN = "9132426420:AAFzMw8G7g-Ev7XQn9NF9tE4zWO_2D-wAbg"
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
