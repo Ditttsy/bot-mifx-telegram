@@ -1,15 +1,15 @@
 import logging
 import os
 import threading
+import time
+import requests
 import matplotlib
-matplotlib.use('Agg') # Biar matplotlib bisa render gambar tanpa layar/GUI di server cloud
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import yfinance as yf
 from flask import Flask
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes
 
-# --- 1. WEB SERVER MINI (BUAT KEEP-ALIVE PING) ---
+# --- 1. WEB SERVER MINI (KEEP-ALIVE) ---
 app_web = Flask(__name__)
 
 @app_web.route('/')
@@ -22,6 +22,7 @@ def run_flask():
 
 # --- 2. CONFIG BOT TELEGRAM ---
 TOKEN = "9132426420:AAFzMw8G7g-Ev7XQn9NF9tE4zWO_2D-wAbg"
+TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
@@ -103,47 +104,94 @@ def generate_chart_dan_analisa(kode_pair):
         
         return laporan, nama_file_gambar
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error Analisa: {e}")
         return None, None
 
-async def cek_market(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    args = context.args
-    pair_pilihan = args[0].lower() if args else "eurusd"
-    
-    hasil = generate_chart_dan_analisa(pair_pilihan)
-    
-    if not hasil or not hasil[0]:
-        await context.bot.send_message(chat_id=chat_id, text="❌ Gagal menarik data/grafik, Cok! Coba lagi nanti.", parse_mode="Markdown")
-        return
-        
-    laporan, path_gambar = hasil
-    keyboard = [[InlineKeyboardButton("✅ Siap Eksekusi di MIFX", callback_data="oke")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    with open(path_gambar, 'rb') as foto:
-        await context.bot.send_photo(chat_id=chat_id, photo=foto)
-        
-    await context.bot.send_message(chat_id=chat_id, text=laporan, parse_mode="Markdown", reply_markup=reply_markup)
-    
-    if os.path.exists(path_gambar):
-        os.remove(path_gambar)
+def kirim_pesan(chat_id, text, reply_markup=None):
+    url = f"{TELEGRAM_API}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+    requests.post(url, json=payload)
 
-async def tombol_diklik(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(text="Mantap, Cok! Semoga profit hijau mulus di MIFX! 🚀", parse_mode="Markdown")
+def kirim_foto(chat_id, photo_path, caption=None, reply_markup=None):
+    url = f"{TELEGRAM_API}/sendPhoto"
+    with open(photo_path, 'rb') as foto:
+        files = {"photo": foto}
+        data = {"chat_id": chat_id, "parse_mode": "Markdown"}
+        if caption:
+            data["caption"] = caption
+        if reply_markup:
+            data["reply_markup"] = reply_markup
+        requests.post(url, data=data, files=files)
+
+# --- 3. LONG POLLING LOOP MANUAL ---
+def run_telegram_bot():
+    print("Bot Telegram Polling Manual Aktif, Cok!")
+    offset = 0
+    while True:
+        try:
+            url = f"{TELEGRAM_API}/getUpdates?offset={offset}&timeout=30"
+            response = requests.get(url, timeout=35)
+            data = response.json()
+            
+            if data.get("ok"):
+                for result in data.get("result", []):
+                    offset = result["update_id"] + 1
+                    
+                    # Handle Callback Query (Tombol diklik)
+                    if "callback_query" in result:
+                        cq = result["callback_query"]
+                        cq_id = cq["id"]
+                        chat_id = cq["message"]["chat"]["id"]
+                        
+                        # Jawab callback query biar loading mutar di tombol ilang
+                        requests.post(f"{TELEGRAM_API}/answerCallbackQuery", json={"callback_query_id": cq_id})
+                        
+                        # Edit pesan tombol jadi teks sukses
+                        msg_id = cq["message"]["message_id"]
+                        requests.post(f"{TELEGRAM_API}/editMessageText", json={
+                            "chat_id": chat_id,
+                            "message_id": msg_id,
+                            "text": "Mantap, Cok! Semoga profit hijau mulus di MIFX! 🚀",
+                            "parse_mode": "Markdown"
+                        })
+                        continue
+
+                    # Handle Pesan Teks biasa / Command
+                    if "message" in result:
+                        msg = result["message"]
+                        chat_id = msg["chat"]["id"]
+                        text = msg.get("text", "").strip().lower()
+                        
+                        if text.startswith("/start") or text.startswith("/analisa"):
+                            parts = text.split()
+                            pair_pilihan = parts[1] if len(parts) > 1 else "eurusd"
+                            
+                            hasil = generate_chart_dan_analisa(pair_pilihan)
+                            if not hasil or not hasil[0]:
+                                kirim_pesan(chat_id, "❌ Gagal menarik data/grafik, Cok! Coba lagi nanti.")
+                                continue
+                                
+                            laporan, path_gambar = hasil
+                            keyboard = {
+                                "inline_keyboard": [[
+                                    {"text": "✅ Siap Eksekusi di MIFX", "callback_data": "oke"}
+                                ]]
+                            }
+                            
+                            kirim_foto(chat_id, path_gambar, caption=laporan, reply_markup=keyboard)
+                            
+                            if os.path.exists(path_gambar):
+                                os.remove(path_gambar)
+                                
+        except Exception as e:
+            print(f"Polling Error: {e}")
+            time.sleep(5)
 
 if __name__ == "__main__":
-    # Jalankan Flask Server di thread terpisah agar keep-alive jalan
+    # Jalankan Flask Server di thread terpisah (keep-alive)
     threading.Thread(target=run_flask, daemon=True).start()
     
-    # Inisialisasi Bot Telegram dengan benar (menggunakan Updater bawaan otomatis)
-    app = ApplicationBuilder().token(TOKEN).build()
-    
-    app.add_handler(CommandHandler("analisa", cek_market))
-    app.add_handler(CommandHandler("start", cek_market))
-    app.add_handler(CallbackQueryHandler(tombol_diklik))
-    
-    print("Bot Cloud-Ready Aktif, Cok!")
-    app.run_polling()
+    # Jalankan Bot Telegram Polling Manual
+    run_telegram_bot()
