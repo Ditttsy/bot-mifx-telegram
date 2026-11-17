@@ -4,10 +4,6 @@ import os
 import threading
 import time
 import requests
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import yfinance as yf
 from flask import Flask
 
 # --- 1. WEB SERVER MINI (KEEP-ALIVE) ---
@@ -27,13 +23,6 @@ TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 GEMINI_API_KEY = "f57f304431a74285892e8cce6b66dd7b"
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
-
-DAFTAR_PAIR = {
-    "eurusd": {"ticker": "EURUSD=X", "nama": "EUR/USD (Forex)", "jarak_sl": 0.0030},
-    "gbpusd": {"ticker": "GBPUSD=X", "nama": "GBP/USD (Cable)", "jarak_sl": 0.0040},
-    "xauusd": {"ticker": "GC=F", "nama": "XAU/USD (Gold/Emas)", "jarak_sl": 5.00},
-    "usdjpy": {"ticker": "USDJPY=X", "nama": "USD/JPY (Yen)", "jarak_sl": 0.35}
-}
 
 # --- FUNGSI ANALISA SCREENSHOT CANDLESTICK VIA GEMINI VISION ---
 def analisa_gambar_chart(file_id, caption_user=""):
@@ -90,18 +79,79 @@ def analisa_gambar_chart(file_id, caption_user=""):
         print(f"Exception Vision: {e}")
         return f"❌ Terjadi error pas proses gambar: `{e}`"
 
-# --- FUNGSI GENERATE CHART MANUAL (/analisa) ---
-def generate_chart_dan_analisa(kode_pair):
-    if kode_pair not in DAFTAR_PAIR:
-        kode_pair = "eurusd"
-        
-    info = DAFTAR_PAIR[kode_pair]
-    ticker_symbol = info["ticker"]
-    
-    df_m15 = None
-    df_h1 = None
-    
-    try:
-        session = requests.Session()
-        session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/53
+def kirim_pesan(chat_id, text, reply_markup=None):
+    url = f"{TELEGRAM_API}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+    res = requests.post(url, json=payload)
+    if not res.json().get("ok"):
+        payload.pop("parse_mode", None)
+        requests.post(url, json=payload)
+
+# --- 3. LONG POLLING LOOP MANUAL ---
+def run_telegram_bot():
+    print("Bot Telegram AI Vision Murni Aktif, Cok!")
+    offset = 0
+    while True:
+        try:
+            url = f"{TELEGRAM_API}/getUpdates?offset={offset}&timeout=20"
+            response = requests.get(url, timeout=25)
+            data = response.json()
+            
+            if data.get("ok"):
+                for result in data.get("result", []):
+                    offset = result["update_id"] + 1
+                    
+                    if "callback_query" in result:
+                        cq = result["callback_query"]
+                        cq_id = cq["id"]
+                        chat_id = cq["message"]["chat"]["id"]
+                        requests.post(f"{TELEGRAM_API}/answerCallbackQuery", json={"callback_query_id": cq_id})
+                        msg_id = cq["message"]["message_id"]
+                        requests.post(f"{TELEGRAM_API}/editMessageText", json={
+                            "chat_id": chat_id,
+                            "message_id": msg_id,
+                            "text": "Mantap, Cok! Semoga profit hijau mulus di MIFX! 🚀",
+                            "parse_mode": "Markdown"
+                        })
+                        continue
+
+                    if "message" in result:
+                        msg = result["message"]
+                        chat_id = msg["chat"]["id"]
+                        
+                        # --- DETEKSI KIRIM FOTO / SCREENSHOT CHART ---
+                        if "photo" in msg:
+                            kirim_pesan(chat_id, "🔍 *Sabar Cok, AI lagi ngebaca struktur candlestick lu...*")
+                            file_id_tertinggi = msg["photo"][-1]["file_id"]
+                            caption_user = msg.get("caption", "")
+                            
+                            hasil_vision = analisa_gambar_chart(file_id_tertinggi, caption_user)
+                            keyboard = {
+                                "inline_keyboard": [[
+                                    {"text": "✅ Siap Eksekusi di MIFX", "callback_data": "oke"}
+                                ]]
+                            }
+                            kirim_pesan(chat_id, hasil_vision, reply_markup=keyboard)
+                            continue
+
+                        # --- DETEKSI TEKS BIASA ---
+                        text = msg.get("text", "").strip().lower()
+                        
+                        if text.startswith("/start"):
+                            pesan_welcome = (
+                                "🔥 *Bot Trading MIFX + AI Chart Reader Aktif, Cok!*\n\n"
+                                "Cara pakainya super gampang:\n"
+                                "📸 *Kirim Screenshot Chart* langsung ke chat ini (dari TradingView atau MIFX), nanti AI langsung baca polanya & kasih arahan *Buy / Sell + SL/TP* secara akurat!\n\n"
+                                "_Tips: Lu bisa tambahin caption pas kirim foto, misal: 'XAUUSD scalping M15'._"
+                            )
+                            kirim_pesan(chat_id, pesan_welcome)
+                                
+        except Exception as e:
+            print(f"Polling Loop Error: {e}")
+            time.sleep(3)
+
+if __name__ == "__main__":
+    threading.Thread(target=run_flask, daemon=True).start()
+    run_telegram_bot()
