@@ -20,8 +20,6 @@ def run_flask():
 # --- 2. CONFIG BOT TELEGRAM & GEMINI AI ---
 TOKEN = "9132426420:AAFzMw8G7g-Ev7XQn9NF9tE4zWO_2D-wAbg"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
-
-# API Key Google Gemini yang asli dan baru
 GEMINI_API_KEY = "AQ.Ab8RN6IPkcJUuHy3H7R-lbewBtoWRNfgH4FKGv_pkRG9Locv5Q"
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -51,7 +49,8 @@ def analisa_gambar_chart(file_id, caption_user=""):
         if caption_user:
             prompt_trader += f"\n\nCatatan tambahan dari user: {caption_user}"
             
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        # UPDATE KE MODEL TERBARU SESUAI PESAN ERROR: gemini-3.8-flash
+        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
             "contents": [{
                 "parts": [
