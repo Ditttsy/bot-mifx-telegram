@@ -20,7 +20,9 @@ def run_flask():
 # --- 2. CONFIG BOT TELEGRAM & GEMINI AI ---
 TOKEN = "9132426420:AAFzMw8G7g-Ev7XQn9NF9tE4zWO_2D-wAbg"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
-GEMINI_API_KEY = "d3927457b27843adabe4fccd6688fb71"
+
+# Ambil API Key otomatis dari Environment Variables Railway
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "f57f304431a74285892e8cce6b66dd7b")
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
