@@ -25,7 +25,7 @@ def run_flask():
 TOKEN = "9132426420:AAFzMw8G7g-Ev7XQn9NF9tE4zWO_2D-wAbg"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
-# GANTI DENGAN GEMINI API KEY GRATIS DARI GOOGLE AI STUDIO
+# API Key Gemini yang baru saja lu berikan
 GEMINI_API_KEY = "f57f304431a74285892e8cce6b66dd7b"
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -37,7 +37,7 @@ DAFTAR_PAIR = {
     "usdjpy": {"ticker": "USDJPY=X", "nama": "USD/JPY (Yen)", "jarak_sl": 0.35}
 }
 
-# --- FUNGSI BARU: ANALISA SCREENSHOT CANDLESTICK VIA GEMINI VISION ---
+# --- FUNGSI ANALISA SCREENSHOT CANDLESTICK VIA GEMINI VISION ---
 def analisa_gambar_chart(file_id, caption_user=""):
     try:
         # 1. Ambil path file gambar dari server Telegram
@@ -96,7 +96,7 @@ def analisa_gambar_chart(file_id, caption_user=""):
         print(f"Exception Vision: {e}")
         return f"❌ Terjadi error pas proses gambar: `{e}`"
 
-# --- FUNGSI LAMA: GENERATE CHART MANUAL (/analisa) ---
+# --- FUNGSI GENERATE CHART MANUAL (/analisa) ---
 def generate_chart_dan_analisa(kode_pair):
     if kode_pair not in DAFTAR_PAIR:
         kode_pair = "eurusd"
@@ -173,152 +173,4 @@ def generate_chart_dan_analisa(kode_pair):
         is_gold_or_jpy = "GC" in ticker_symbol or "JPY" in ticker_symbol or kode_pair == "xauusd"
         dec = 2 if is_gold_or_jpy else 4
         
-        if action_type == "buy":
-            sl = round(harga_terakhir - jarak_sl, dec)
-            tp1 = round(harga_terakhir + jarak_sl, dec)
-            tp2 = round(harga_terakhir + (jarak_sl * 2), dec)
-        else:
-            sl = round(harga_terakhir + jarak_sl, dec)
-            tp1 = round(harga_terakhir - jarak_sl, dec)
-            tp2 = round(harga_terakhir - (jarak_sl * 2), dec)
-
-        plt.figure(figsize=(8, 4))
-        plt.plot(df_m15.index, df_m15['Close'], label='Harga M15', color='#00d2ff', linewidth=2)
-        plt.axhline(ma_m15, color='#ff9900', linestyle='--', label='Rata-rata (MA)')
-        plt.title(f"Grafik Live {info['nama']} - Harga: {round(harga_terakhir, dec)}")
-        plt.xlabel("Waktu")
-        plt.ylabel("Harga")
-        plt.legend()
-        plt.grid(True, linestyle=':', alpha=0.5)
-        plt.tight_layout()
-        
-        nama_file_gambar = "chart_analisa.png"
-        plt.savefig(nama_file_gambar, dpi=150)
-        plt.close()
-        
-        laporan = (
-            f"🚨 *ANALISIS MULTI-TIMEFRAME: {info['nama']}* 🚨\n"
-            f"Harga Live: `{round(harga_terakhir, dec)}`\n\n"
-            f"🌐 *Tren Utama (H1):* {tren_besar}\n"
-            f"⚡ *Tren Eksekusi (M15):* Di atas/bawah rata-rata\n"
-            f"*{saran}*\n\n"
-            f"🛡️ **Manajemen Risiko (SL / TP):**\n"
-            f"❌ **Stop Loss (SL):** `{sl}`\n"
-            f"🎯 **Take Profit (TP 1):** `{tp1}`\n"
-            f"🎯 **Take Profit (TP 2):** `{tp2}`\n\n"
-            f"_Grafik visual terlampir di bawah ya, Cok! Eksekusi di MIFX._"
-        )
-        
-        return laporan, nama_file_gambar
-    except Exception as e:
-        print(f"Error Charting: {e}")
-        return None, None
-
-def kirim_pesan(chat_id, text, reply_markup=None):
-    url = f"{TELEGRAM_API}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
-    if reply_markup:
-        payload["reply_markup"] = reply_markup
-    res = requests.post(url, json=payload)
-    # Fallback jika markdown error karena karakter aneh dari AI
-    if not res.json().get("ok"):
-        payload.pop("parse_mode", None)
-        requests.post(url, json=payload)
-
-def kirim_foto_dan_pesan(chat_id, path_gambar, caption):
-    try:
-        url = f"{TELEGRAM_API}/sendPhoto"
-        with open(path_gambar, 'rb') as foto:
-            files = {"photo": foto}
-            data = {
-                "chat_id": chat_id, 
-                "caption": caption, 
-                "parse_mode": "Markdown",
-                "reply_markup": '{"inline_keyboard": [[{"text": "✅ Siap Eksekusi di MIFX", "callback_data": "oke"}]]}'
-            }
-            requests.post(url, data=data, files=files, timeout=10)
-    except Exception as e:
-        print(f"Gagal kirim foto: {e}")
-
-# --- 3. LONG POLLING LOOP MANUAL ---
-def run_telegram_bot():
-    print("Bot Telegram Polling Manual + Vision Aktif, Cok!")
-    offset = 0
-    while True:
-        try:
-            url = f"{TELEGRAM_API}/getUpdates?offset={offset}&timeout=20"
-            response = requests.get(url, timeout=25)
-            data = response.json()
-            
-            if data.get("ok"):
-                for result in data.get("result", []):
-                    offset = result["update_id"] + 1
-                    
-                    if "callback_query" in result:
-                        cq = result["callback_query"]
-                        cq_id = cq["id"]
-                        chat_id = cq["message"]["chat"]["id"]
-                        requests.post(f"{TELEGRAM_API}/answerCallbackQuery", json={"callback_query_id": cq_id})
-                        msg_id = cq["message"]["message_id"]
-                        requests.post(f"{TELEGRAM_API}/editMessageText", json={
-                            "chat_id": chat_id,
-                            "message_id": msg_id,
-                            "text": "Mantap, Cok! Semoga profit hijau mulus di MIFX! 🚀",
-                            "parse_mode": "Markdown"
-                        })
-                        continue
-
-                    if "message" in result:
-                        msg = result["message"]
-                        chat_id = msg["chat"]["id"]
-                        
-                        # --- DETEKSI JIKA USER KIRIM FOTO / SCREENSHOT CHART ---
-                        if "photo" in msg:
-                            kirim_pesan(chat_id, "🔍 *Sabar Cok, lagi ngebaca struktur candlestick lu...*")
-                            # Ambil resolusi foto paling tajam (index terakhir)
-                            file_id_tertinggi = msg["photo"][-1]["file_id"]
-                            caption_user = msg.get("caption", "")
-                            
-                            hasil_vision = analisa_gambar_chart(file_id_tertinggi, caption_user)
-                            keyboard = {
-                                "inline_keyboard": [[
-                                    {"text": "✅ Siap Eksekusi di MIFX", "callback_data": "oke"}
-                                ]]
-                            }
-                            kirim_pesan(chat_id, hasil_vision, reply_markup=keyboard)
-                            continue
-
-                        # --- DETEKSI PESAN TEKS BIASA ---
-                        text = msg.get("text", "").strip().lower()
-                        
-                        if text.startswith("/start"):
-                            pesan_welcome = (
-                                "🔥 *Bot Trading MIFX + AI Chart Reader Aktif, Cok!*\n\n"
-                                "Cara pakainya gampang:\n"
-                                "📸 *Kirim Screenshot Chart* langsung ke chat ini (dari TradingView atau MIFX), nanti gua baca polanya & kasih arahan *Buy / Sell + SL/TP* secara akurat!\n\n"
-                                "_Tips: Pas kirim screenshot, lu bisa tambahin caption kayak 'M15 scalping' biar analisanya makin presisi._"
-                            )
-                            kirim_pesan(chat_id, pesan_welcome)
-                            
-                        elif text.startswith("/analisa"):
-                            parts = text.split()
-                            pair_pilihan = parts[1] if len(parts) > 1 else "eurusd"
-                            
-                            hasil = generate_chart_dan_analisa(pair_pilihan)
-                            if not hasil or not hasil[0]:
-                                kirim_pesan(chat_id, "❌ Gagal memproses data, Cok!")
-                                continue
-                                
-                            laporan, path_gambar = hasil
-                            kirim_foto_dan_pesan(chat_id, path_gambar, laporan)
-                            
-                            if os.path.exists(path_gambar):
-                                os.remove(path_gambar)
-                                
-        except Exception as e:
-            print(f"Polling Loop Error: {e}")
-            time.sleep(3)
-
-if __name__ == "__main__":
-    threading.Thread(target=run_flask, daemon=True).start()
-    run_telegram_bot()
+        if action
