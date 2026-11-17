@@ -1,3 +1,4 @@
+import base64
 import logging
 import os
 import threading
@@ -14,15 +15,18 @@ app_web = Flask(__name__)
 
 @app_web.route('/')
 def home():
-    return "Bot Trading MIFX Aktif 24/7, Cok!"
+    return "Bot Trading MIFX + AI Chart Vision Aktif 24/7, Cok!"
 
 def run_flask():
     port = int(os.environ.get("PORT", 8080))
     app_web.run(host="0.0.0.0", port=port)
 
-# --- 2. CONFIG BOT TELEGRAM ---
+# --- 2. CONFIG BOT TELEGRAM & GEMINI AI ---
 TOKEN = "9132426420:AAFzMw8G7g-Ev7XQn9NF9tE4zWO_2D-wAbg"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
+
+# GANTI DENGAN GEMINI API KEY GRATIS DARI GOOGLE AI STUDIO
+GEMINI_API_KEY = "f57f304431a74285892e8cce6b66dd7b"
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
@@ -33,6 +37,66 @@ DAFTAR_PAIR = {
     "usdjpy": {"ticker": "USDJPY=X", "nama": "USD/JPY (Yen)", "jarak_sl": 0.35}
 }
 
+# --- FUNGSI BARU: ANALISA SCREENSHOT CANDLESTICK VIA GEMINI VISION ---
+def analisa_gambar_chart(file_id, caption_user=""):
+    try:
+        # 1. Ambil path file gambar dari server Telegram
+        res_file = requests.get(f"{TELEGRAM_API}/getFile?file_id={file_id}", timeout=10).json()
+        if not res_file.get("ok"):
+            return "❌ Gagal mengambil file gambar dari Telegram, Cok!"
+            
+        file_path = res_file["result"]["file_path"]
+        file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_path}"
+        
+        # 2. Download gambar & ubah ke Base64
+        img_bytes = requests.get(file_url, timeout=15).content
+        img_b64 = base64.b64encode(img_bytes).decode('utf-8')
+        
+        # 3. Prompt khusus trader MIFX/Scalping
+        prompt_trader = (
+            "Kamu adalah analis teknikal forex & gold (XAUUSD) profesional dengan gaya bahasa santai tapi tajam. "
+            "Analisa screenshot chart candlestick ini secara objektif:\n"
+            "1. Identifikasi Pair & Timeframe (jika terlihat di gambar) serta Harga Terakhir.\n"
+            "2. Baca struktur market saat ini (Bullish, Bearish, atau Sideways), perhatikan bentuk candlestick terakhir (wick/ekor, momentum, rejection), area Support/Resistance, atau indikator yang terlihat.\n"
+            "3. Berikan keputusan tegas: REKOMENDASI BUY (Long), SELL (Short), atau WAIT & SEE (jangan paksakan entry kalau market jelek).\n"
+            "4. Berikan estimasi area Entry, Stop Loss (SL), dan Take Profit (TP 1 & TP 2) yang masuk akal berdasarkan skala harga di sumbu kanan chart.\n"
+            "Gunakan format rapi dengan bullet points dan bold agar mudah dibaca di Telegram."
+        )
+        if caption_user:
+            prompt_trader += f"\n\nCatatan tambahan dari user: {caption_user}"
+            
+        # 4. Tembak langsung ke Gemini 2.5 Flash REST API
+        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        payload = {
+            "contents": [{
+                "parts": [
+                    {"text": prompt_trader},
+                    {
+                        "inline_data": {
+                            "mime_type": "image/jpeg",
+                            "data": img_b64
+                        }
+                    }
+                ]
+            }]
+        }
+        
+        response = requests.post(gemini_url, json=payload, timeout=30)
+        data_ai = response.json()
+        
+        if "candidates" in data_ai:
+            hasil_analisa = data_ai["candidates"][0]["content"]["parts"][0]["text"]
+            return hasil_analisa
+        else:
+            err_msg = data_ai.get("error", {}).get("message", "Unknown Error")
+            print(f"Gemini API Error: {err_msg}")
+            return f"❌ AI gagal baca gambar, Cok! Error: `{err_msg}`"
+            
+    except Exception as e:
+        print(f"Exception Vision: {e}")
+        return f"❌ Terjadi error pas proses gambar: `{e}`"
+
+# --- FUNGSI LAMA: GENERATE CHART MANUAL (/analisa) ---
 def generate_chart_dan_analisa(kode_pair):
     if kode_pair not in DAFTAR_PAIR:
         kode_pair = "eurusd"
@@ -60,7 +124,6 @@ def generate_chart_dan_analisa(kode_pair):
     except:
         pass
 
-    # Fallback data aman jika yfinance diblokir total
     if df_m15 is None or df_m15.empty or 'Close' not in df_m15.columns:
         try:
             res = requests.get("https://open.er-api.com/v6/latest/USD", timeout=3).json()
@@ -151,6 +214,17 @@ def generate_chart_dan_analisa(kode_pair):
         print(f"Error Charting: {e}")
         return None, None
 
+def kirim_pesan(chat_id, text, reply_markup=None):
+    url = f"{TELEGRAM_API}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+    res = requests.post(url, json=payload)
+    # Fallback jika markdown error karena karakter aneh dari AI
+    if not res.json().get("ok"):
+        payload.pop("parse_mode", None)
+        requests.post(url, json=payload)
+
 def kirim_foto_dan_pesan(chat_id, path_gambar, caption):
     try:
         url = f"{TELEGRAM_API}/sendPhoto"
@@ -168,7 +242,7 @@ def kirim_foto_dan_pesan(chat_id, path_gambar, caption):
 
 # --- 3. LONG POLLING LOOP MANUAL ---
 def run_telegram_bot():
-    print("Bot Telegram Polling Manual Aktif dan Standby, Cok!")
+    print("Bot Telegram Polling Manual + Vision Aktif, Cok!")
     offset = 0
     while True:
         try:
@@ -197,18 +271,42 @@ def run_telegram_bot():
                     if "message" in result:
                         msg = result["message"]
                         chat_id = msg["chat"]["id"]
+                        
+                        # --- DETEKSI JIKA USER KIRIM FOTO / SCREENSHOT CHART ---
+                        if "photo" in msg:
+                            kirim_pesan(chat_id, "🔍 *Sabar Cok, lagi ngebaca struktur candlestick lu...*")
+                            # Ambil resolusi foto paling tajam (index terakhir)
+                            file_id_tertinggi = msg["photo"][-1]["file_id"]
+                            caption_user = msg.get("caption", "")
+                            
+                            hasil_vision = analisa_gambar_chart(file_id_tertinggi, caption_user)
+                            keyboard = {
+                                "inline_keyboard": [[
+                                    {"text": "✅ Siap Eksekusi di MIFX", "callback_data": "oke"}
+                                ]]
+                            }
+                            kirim_pesan(chat_id, hasil_vision, reply_markup=keyboard)
+                            continue
+
+                        # --- DETEKSI PESAN TEKS BIASA ---
                         text = msg.get("text", "").strip().lower()
                         
-                        if text.startswith("/start") or text.startswith("/analisa"):
+                        if text.startswith("/start"):
+                            pesan_welcome = (
+                                "🔥 *Bot Trading MIFX + AI Chart Reader Aktif, Cok!*\n\n"
+                                "Cara pakainya gampang:\n"
+                                "📸 *Kirim Screenshot Chart* langsung ke chat ini (dari TradingView atau MIFX), nanti gua baca polanya & kasih arahan *Buy / Sell + SL/TP* secara akurat!\n\n"
+                                "_Tips: Pas kirim screenshot, lu bisa tambahin caption kayak 'M15 scalping' biar analisanya makin presisi._"
+                            )
+                            kirim_pesan(chat_id, pesan_welcome)
+                            
+                        elif text.startswith("/analisa"):
                             parts = text.split()
                             pair_pilihan = parts[1] if len(parts) > 1 else "eurusd"
                             
                             hasil = generate_chart_dan_analisa(pair_pilihan)
                             if not hasil or not hasil[0]:
-                                requests.post(f"{TELEGRAM_API}/sendMessage", json={
-                                    "chat_id": chat_id, 
-                                    "text": "❌ Gagal memproses data, Cok!"
-                                })
+                                kirim_pesan(chat_id, "❌ Gagal memproses data, Cok!")
                                 continue
                                 
                             laporan, path_gambar = hasil
