@@ -21,8 +21,8 @@ def run_flask():
 TOKEN = "9132426420:AAFzMw8G7g-Ev7XQn9NF9tE4zWO_2D-wAbg"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
-# Ambil API Key otomatis dari Environment Variables Railway
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "f57f304431a74285892e8cce6b66dd7b")
+# API Key Google Gemini yang asli dan baru
+GEMINI_API_KEY = "AQ.Ab8RN6IPkcJUuHy3H7R-lbewBtoWRNfgH4FKGv_pkRG9Locv5Q"
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
