@@ -49,8 +49,8 @@ def analisa_gambar_chart(file_id, caption_user=""):
         if caption_user:
             prompt_trader += f"\n\nCatatan tambahan dari user: {caption_user}"
             
-        # MENGGUNAKAN MODEL GEMINI-2.0-FLASH DI ENDPOINT STABIL V1
-        gemini_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
+        # MENGGUNAKAN MODEL GEMINI-3.8-FLASH SESUAI PERINTAH ERROR LOG GOOGLE
+        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
             "contents": [{
                 "parts": [
