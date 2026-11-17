@@ -24,8 +24,6 @@ def run_flask():
 # --- 2. CONFIG BOT TELEGRAM & GEMINI AI ---
 TOKEN = "9132426420:AAFzMw8G7g-Ev7XQn9NF9tE4zWO_2D-wAbg"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
-
-# API Key Gemini yang baru saja lu berikan
 GEMINI_API_KEY = "f57f304431a74285892e8cce6b66dd7b"
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -40,7 +38,6 @@ DAFTAR_PAIR = {
 # --- FUNGSI ANALISA SCREENSHOT CANDLESTICK VIA GEMINI VISION ---
 def analisa_gambar_chart(file_id, caption_user=""):
     try:
-        # 1. Ambil path file gambar dari server Telegram
         res_file = requests.get(f"{TELEGRAM_API}/getFile?file_id={file_id}", timeout=10).json()
         if not res_file.get("ok"):
             return "❌ Gagal mengambil file gambar dari Telegram, Cok!"
@@ -48,11 +45,9 @@ def analisa_gambar_chart(file_id, caption_user=""):
         file_path = res_file["result"]["file_path"]
         file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_path}"
         
-        # 2. Download gambar & ubah ke Base64
         img_bytes = requests.get(file_url, timeout=15).content
         img_b64 = base64.b64encode(img_bytes).decode('utf-8')
         
-        # 3. Prompt khusus trader MIFX/Scalping
         prompt_trader = (
             "Kamu adalah analis teknikal forex & gold (XAUUSD) profesional dengan gaya bahasa santai tapi tajam. "
             "Analisa screenshot chart candlestick ini secara objektif:\n"
@@ -65,7 +60,6 @@ def analisa_gambar_chart(file_id, caption_user=""):
         if caption_user:
             prompt_trader += f"\n\nCatatan tambahan dari user: {caption_user}"
             
-        # 4. Tembak langsung ke Gemini 2.5 Flash REST API
         gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
             "contents": [{
@@ -110,67 +104,4 @@ def generate_chart_dan_analisa(kode_pair):
     try:
         session = requests.Session()
         session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-        })
-        session.get("https://finance.yahoo.com", timeout=3)
-        
-        df_m15 = yf.download(ticker_symbol, period="1d", interval="15m", session=session, progress=False)
-        df_h1 = yf.download(ticker_symbol, period="5d", interval="1h", session=session, progress=False)
-        
-        if hasattr(df_m15.columns, 'levels'):
-            df_m15.columns = df_m15.columns.get_level_values(0)
-        if hasattr(df_h1.columns, 'levels'):
-            df_h1.columns = df_h1.columns.get_level_values(0)
-    except:
-        pass
-
-    if df_m15 is None or df_m15.empty or 'Close' not in df_m15.columns:
-        try:
-            res = requests.get("https://open.er-api.com/v6/latest/USD", timeout=3).json()
-            rates = res.get("rates", {})
-            
-            if kode_pair == "eurusd":
-                base_p = rates.get("EUR", 1.0850)
-            elif kode_pair == "gbpusd":
-                base_p = 1.2750
-            elif kode_pair == "usdjpy":
-                base_p = rates.get("JPY", 152.0)
-            else:
-                base_p = 2700.0
-                
-            import pandas as pd
-            import numpy as np
-            
-            dates_m15 = pd.date_range(end=pd.Timestamp.now(), periods=24, freq='15min')
-            prices_m15 = np.linspace(base_p * 0.999, base_p, 24) + np.random.normal(0, base_p*0.0005, 24)
-            df_m15 = pd.DataFrame({'Close': prices_m15}, index=dates_m15)
-            
-            dates_h1 = pd.date_range(end=pd.Timestamp.now(), periods=5, freq='1h')
-            prices_h1 = np.linspace(base_p * 0.995, base_p, 5)
-            df_h1 = pd.DataFrame({'Close': prices_h1}, index=dates_h1)
-        except Exception as e:
-            print(f"Fallback error: {e}")
-            return None, None
-
-    try:
-        harga_terakhir = float(df_m15['Close'].iloc[-1])
-        ma_h1 = float(df_h1['Close'].mean())
-        ma_m15 = float(df_m15['Close'].mean())
-        
-        tren_besar = "Bullish (H1 Hijau)" if harga_terakhir > ma_h1 else "Bearish (H1 Merah)"
-        
-        if harga_terakhir > ma_m15 and harga_terakhir > ma_h1:
-            saran = "📈 REKOMENDASI: STRONG BUY (Long)"
-            action_type = "buy"
-        elif harga_terakhir < ma_m15 and harga_terakhir < ma_h1:
-            saran = "📉 REKOMENDASI: STRONG SELL (Short)"
-            action_type = "sell"
-        else:
-            saran = "⚠️ REKOMENDASI: SIDEWAYS / WAIT & SEE"
-            action_type = "neutral"
-            
-        jarak_sl = info["jarak_sl"]
-        is_gold_or_jpy = "GC" in ticker_symbol or "JPY" in ticker_symbol or kode_pair == "xauusd"
-        dec = 2 if is_gold_or_jpy else 4
-        
-        if action
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/53
