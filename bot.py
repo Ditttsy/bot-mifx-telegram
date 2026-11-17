@@ -1,10 +1,12 @@
 import base64
+import io
 import logging
 import os
 import threading
 import time
 import requests
 from flask import Flask
+from PIL import Image
 
 # --- 1. WEB SERVER MINI (KEEP-ALIVE) ---
 app_web = Flask(__name__)
@@ -27,15 +29,28 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 # --- FUNGSI ANALISA SCREENSHOT CANDLESTICK VIA GEMINI VISION ---
 def analisa_gambar_chart(file_id, caption_user=""):
     try:
-        res_file = requests.get(f"{TELEGRAM_API}/getFile?file_id={file_id}", timeout=15).json()
+        res_file = requests.get(f"{TELEGRAM_API}/getFile?file_id={file_id}", timeout=10).json()
         if not res_file.get("ok"):
             return "❌ Gagal mengambil file gambar dari Telegram, Cok!"
             
         file_path = res_file["result"]["file_path"]
         file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_path}"
         
-        img_bytes = requests.get(file_url, timeout=20).content
-        img_b64 = base64.b64encode(img_bytes).decode('utf-8')
+        # Download gambar mentah
+        img_bytes = requests.get(file_url, timeout=15).content
+        
+        # KOMPRESI GAMBAR OTOMATIS: Resize & kecilkan size biar enteng dikirim ke AI
+        img = Image.open(io.BytesIO(img_bytes))
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        # Resize jika terlalu besar (maksimal lebar 1024px, pertahankan rasio)
+        img.thumbnail((1024, 1024))
+        
+        output = io.BytesIO()
+        img.save(output, format="JPEG", quality=80)
+        img_compressed_bytes = output.getvalue()
+        img_b64 = base64.b64encode(img_compressed_bytes).decode('utf-8')
         
         prompt_trader = (
             "Kamu adalah analis teknikal forex & gold (XAUUSD) profesional dengan gaya bahasa santai tapi tajam. "
@@ -64,8 +79,7 @@ def analisa_gambar_chart(file_id, caption_user=""):
             }]
         }
         
-        # TIMEOUT DINAIKKAN JADI 60 DETIK BIAR GAK GAMPANG PUTUS
-        response = requests.post(gemini_url, json=payload, timeout=60)
+        response = requests.post(gemini_url, json=payload, timeout=45)
         data_ai = response.json()
         
         if "candidates" in data_ai:
@@ -78,7 +92,7 @@ def analisa_gambar_chart(file_id, caption_user=""):
             
     except Exception as e:
         print(f"Exception Vision: {e}")
-        return f"❌ Terjadi error pas proses gambar (Timeout/Karingan): `{e}`"
+        return f"❌ Terjadi error pas proses gambar (Timeout/Koneksi): `{e}`"
 
 def kirim_pesan(chat_id, text, reply_markup=None):
     url = f"{TELEGRAM_API}/sendMessage"
