@@ -22,7 +22,9 @@ def run_flask():
 # --- 2. CONFIG BOT TELEGRAM & GEMINI AI ---
 TOKEN = "9132426420:AAFzMw8G7g-Ev7XQn9NF9tE4zWO_2D-wAbg"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
-GEMINI_API_KEY = "AQ.Ab8RN6IPkcJUuHy3H7R-lbewBtoWRNfgH4FKGv_pkRG9Locv5Q"
+
+# Dibersihkan pakai .strip() buat mangkas spasi tersembunyi
+GEMINI_API_KEY = "AQ.Ab8RN6IPkcJUuHy3H7R-lbewBtoWRNfgH4FKGv_pkRG9Locv5Q".strip()
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
@@ -36,15 +38,12 @@ def analisa_gambar_chart(file_id, caption_user=""):
         file_path = res_file["result"]["file_path"]
         file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_path}"
         
-        # Download gambar mentah
         img_bytes = requests.get(file_url, timeout=15).content
         
-        # KOMPRESI GAMBAR OTOMATIS: Resize & kecilkan size biar enteng dikirim ke AI
+        # Kompresi gambar biar ringan & gak timeout
         img = Image.open(io.BytesIO(img_bytes))
         if img.mode != 'RGB':
             img = img.convert('RGB')
-        
-        # Resize jika terlalu besar (maksimal lebar 1024px, pertahankan rasio)
         img.thumbnail((1024, 1024))
         
         output = io.BytesIO()
