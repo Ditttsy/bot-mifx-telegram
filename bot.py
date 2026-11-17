@@ -27,14 +27,14 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 # --- FUNGSI ANALISA SCREENSHOT CANDLESTICK VIA GEMINI VISION ---
 def analisa_gambar_chart(file_id, caption_user=""):
     try:
-        res_file = requests.get(f"{TELEGRAM_API}/getFile?file_id={file_id}", timeout=10).json()
+        res_file = requests.get(f"{TELEGRAM_API}/getFile?file_id={file_id}", timeout=15).json()
         if not res_file.get("ok"):
             return "❌ Gagal mengambil file gambar dari Telegram, Cok!"
             
         file_path = res_file["result"]["file_path"]
         file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_path}"
         
-        img_bytes = requests.get(file_url, timeout=15).content
+        img_bytes = requests.get(file_url, timeout=20).content
         img_b64 = base64.b64encode(img_bytes).decode('utf-8')
         
         prompt_trader = (
@@ -49,7 +49,6 @@ def analisa_gambar_chart(file_id, caption_user=""):
         if caption_user:
             prompt_trader += f"\n\nCatatan tambahan dari user: {caption_user}"
             
-        # MENGGUNAKAN MODEL GEMINI-3.8-FLASH SESUAI PERINTAH ERROR LOG GOOGLE
         gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
             "contents": [{
@@ -65,7 +64,8 @@ def analisa_gambar_chart(file_id, caption_user=""):
             }]
         }
         
-        response = requests.post(gemini_url, json=payload, timeout=30)
+        # TIMEOUT DINAIKKAN JADI 60 DETIK BIAR GAK GAMPANG PUTUS
+        response = requests.post(gemini_url, json=payload, timeout=60)
         data_ai = response.json()
         
         if "candidates" in data_ai:
@@ -78,7 +78,7 @@ def analisa_gambar_chart(file_id, caption_user=""):
             
     except Exception as e:
         print(f"Exception Vision: {e}")
-        return f"❌ Terjadi error pas proses gambar: `{e}`"
+        return f"❌ Terjadi error pas proses gambar (Timeout/Karingan): `{e}`"
 
 def kirim_pesan(chat_id, text, reply_markup=None):
     url = f"{TELEGRAM_API}/sendMessage"
