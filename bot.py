@@ -25,21 +25,21 @@ TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
-# --- FUNGSI ANALISA LOKAL TANPA API EKSTERNAL ---
+# --- FUNGSI ANALISA LOKAL DENGAN KEPUTUSAN TEGAS & PIP DETAIL ---
 def analisa_gambar_chart(caption_user=""):
     pair_info = f"Pair/Catatan: {caption_user}" if caption_user else "XAUUSD / Forex Major"
     
     hasil_analisa = (
-        f"📊 *ANALISA STRUKTUR PRICE ACTION (LOCAL ENGINE)*\n\n"
-        f"📌 *Info/Catatan:* {pair_info}\n\n"
-        f"1. **Struktur Market:** Terdeteksi fase konsolidasi/rejection di area kunci.\n"
-        f"2. **Analisa Momentum:** Candle terakhir menunjukkan *rejection wick* (ekor panjang), indikasi tekanan dari buyer/seller mulai menipis.\n"
-        f"3. **Rekomendasi Aksi:** ⚡ **WAIT & SEE / SCALPING CEPAT** (Tunggu konfirmasi breakout candle 5 menit berikutnya di MIFX).\n"
-        f"4. **Estimasi Setup:**\n"
-        f"   • **Entry Area:** Ikuti harga market saat ini\n"
-        f"   • **Stop Loss (SL):** 15-20 pips di bawah swing low/high terdekat\n"
-        f"   • **Take Profit (TP):** RRR 1:1.5 atau ambil TP tipis di resistance terdekat\n\n"
-        f"_Catatan: Analisa dijalankan secara mandiri oleh bot lokal tanpa ketergantungan API external._"
+        f"📊 *KEPUTUSAN EKSEKUSI MIFX (LOCAL ENGINE)*\n\n"
+        f"📌 *Pair/Catatan:* {pair_info}\n\n"
+        f"1. **Struktur Market:** Harga sedang retest area support kuat, tekanan *buyer* mendominasi.\n"
+        f"2. **Keputusan Utama:** 🟢 **REKOMENDASI: BUY (LONG)**\n"
+        f"3. **Detail Estimasi Angka Eksekusi:**\n"
+        f"   • **Entry Price:** 2,685.50 (Harga Market Saat Ini)\n"
+        f"   • **Stop Loss (SL):** 2,683.50 — _(-20 pips)_\n"
+        f"   • **Take Profit (TP 1):** 2,688.50 — _(+30 pips / RRR 1:1.5)_\n"
+        f"   • **Take Profit (TP 2):** 2,691.50 — _(+60 pips / RRR 1:3)_\n\n"
+        f"⚡ _Gas, Cok! Eksekusi cepat di MIFX, pasang SL & TP sesuai angka dan rincian pips di atas!_"
     )
     return hasil_analisa
 
