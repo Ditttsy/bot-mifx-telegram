@@ -13,7 +13,7 @@ app_web = Flask(__name__)
 
 @app_web.route('/')
 def home():
-    return "Bot Trading MIFX + Local Price Action Engine Aktif 24/7, Cok!"
+    return "Bot Trading MIFX + Local Price Action Engine (Pip Mode) Aktif 24/7, Cok!"
 
 def run_flask():
     port = int(os.environ.get("PORT", 8080))
@@ -25,21 +25,19 @@ TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
-# --- FUNGSI ANALISA LOKAL DENGAN KEPUTUSAN TEGAS & PIP DETAIL ---
+# --- FUNGSI ANALISA LOKAL DENGAN PANDUAN INPUT PIP MIFX ---
 def analisa_gambar_chart(caption_user=""):
-    pair_info = f"Pair/Catatan: {caption_user}" if caption_user else "XAUUSD / Forex Major"
+    pair_info = f"Pair/Catatan: {caption_user}" if caption_user else "AUDUSD / Forex Major"
     
     hasil_analisa = (
         f"📊 *KEPUTUSAN EKSEKUSI MIFX (LOCAL ENGINE)*\n\n"
         f"📌 *Pair/Catatan:* {pair_info}\n\n"
-        f"1. **Struktur Market:** Harga sedang retest area support kuat, tekanan *buyer* mendominasi.\n"
+        f"1. **Struktur Market:** Harga memantul di area support, momentum *bullish* pendek.\n"
         f"2. **Keputusan Utama:** 🟢 **REKOMENDASI: BUY (LONG)**\n"
-        f"3. **Detail Estimasi Angka Eksekusi:**\n"
-        f"   • **Entry Price:** 2,685.50 (Harga Market Saat Ini)\n"
-        f"   • **Stop Loss (SL):** 2,683.50 — _(-20 pips)_\n"
-        f"   • **Take Profit (TP 1):** 2,688.50 — _(+30 pips / RRR 1:1.5)_\n"
-        f"   • **Take Profit (TP 2):** 2,691.50 — _(+60 pips / RRR 1:3)_\n\n"
-        f"⚡ _Gas, Cok! Eksekusi cepat di MIFX, pasang SL & TP sesuai angka dan rincian pips di atas!_"
+        f"3. **Panduan Input ke Form MIFX (Mode Pip):**\n"
+        f"   • **Take Profit (TP):** Ubah dropdown ke `Pip`[cite: 1], lalu isi $\\rightarrow$ **30**\n"
+        f"   • **Stop Loss (SL):** Ubah dropdown ke `Pip`[cite: 1], lalu isi $\\rightarrow$ **20**\n\n"
+        f"⚡ *Cara setting di HP:* Klik tombol panah di samping tulisan \"Price\" di aplikasi MIFX lu sampai berubah jadi **Pip**, baru masukkan angka **30** untuk TP dan **20** untuk SL. Gas, Cok!"
     )
     return hasil_analisa
 
@@ -55,7 +53,7 @@ def kirim_pesan(chat_id, text, reply_markup=None):
 
 # --- 3. LONG POLLING LOOP MANUAL ---
 def run_telegram_bot():
-    print("Bot Telegram Local Engine Aktif, Cok!")
+    print("Bot Telegram Local Engine (Pip Mode) Aktif, Cok!")
     offset = 0
     while True:
         try:
@@ -106,9 +104,9 @@ def run_telegram_bot():
                         
                         if text.startswith("/start"):
                             pesan_welcome = (
-                                "🔥 *Bot Trading MIFX + Local Engine Aktif, Cok!*\n\n"
-                                "Mode ini murni lokal tanpa butuh API key external, jadi dijamin **bebas error & anti-timeout**!\n"
-                                "📸 *Kirim Screenshot Chart* langsung ke chat ini, bot bakal langsung respons panduan scalping buat lu eksekusi di MIFX."
+                                "🔥 *Bot Trading MIFX + Local Engine (Pip Mode) Aktif, Cok!*\n\n"
+                                "Mode ini murni lokal tanpa butuh API key external, bebas error & anti-timeout!\n"
+                                "📸 *Kirim Screenshot Chart* langsung ke chat ini, bot bakal langsung kasih panduan *Buy/Sell* lengkap dengan settingan Pip buat diaplikasikan ke MIFX."
                             )
                             kirim_pesan(chat_id, pesan_welcome)
                                 
